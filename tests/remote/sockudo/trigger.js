@@ -1,32 +1,32 @@
-const expect = require("expect.js")
+const expect = require("expect.js");
 
-const Pusher = require("../../../lib/pusher")
+const Sockudo = require("../../../dist/sockudo");
 
-describe("Pusher (integration)", function () {
-  let pusher
+describe("Sockudo (integration)", function () {
+  let sockudo;
 
   beforeEach(function () {
-    pusher = new Pusher.forURL(process.env.PUSHER_URL)
-  })
+    sockudo = new Sockudo.forURL(process.env.SOCKUDO_URL);
+  });
 
   describe("#trigger", function () {
     it("should return code 200", function (done) {
-      pusher
+      sockudo
         .trigger("integration", "event", "test", null)
         .then((response) => {
-          expect(response.status).to.equal(200)
+          expect(response.status).to.equal(200);
           return response.json().then((body) => {
-            expect(body).to.eql({})
-            done()
-          })
+            expect(body).to.eql({});
+            done();
+          });
         })
-        .catch(done)
-    })
-  })
+        .catch(done);
+    });
+  });
 
   describe("#triggerBatch", function () {
     it("should return code 200", function (done) {
-      pusher
+      sockudo
         .triggerBatch([
           {
             channel: "integration",
@@ -40,13 +40,13 @@ describe("Pusher (integration)", function () {
           },
         ])
         .then((response) => {
-          expect(response.status).to.equal(200)
+          expect(response.status).to.equal(200);
           return response.json().then((body) => {
-            expect(body).to.eql({})
-            done()
-          })
+            expect(body).to.eql({});
+            done();
+          });
         })
-        .catch(done)
-    })
-  })
-})
+        .catch(done);
+    });
+  });
+});

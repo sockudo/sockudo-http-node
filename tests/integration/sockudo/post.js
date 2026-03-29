@@ -1,177 +1,177 @@
-const expect = require("expect.js")
-const nock = require("nock")
+const expect = require("expect.js");
+const nock = require("nock");
 
-const Pusher = require("../../../lib/pusher")
+const Sockudo = require("../../../dist/sockudo");
 
-describe("Pusher", function () {
-  let pusher
+describe("Sockudo", function () {
+  let sockudo;
 
   beforeEach(function () {
-    pusher = new Pusher({ appId: 10000, key: "aaaa", secret: "tofu" })
-    nock.disableNetConnect()
-  })
+    sockudo = new Sockudo({ appId: 10000, key: "aaaa", secret: "tofu" });
+    nock.disableNetConnect();
+  });
 
   afterEach(function () {
-    nock.cleanAll()
-    nock.enableNetConnect()
-  })
+    nock.cleanAll();
+    nock.enableNetConnect();
+  });
 
   describe("#post", function () {
     it("should set the correct path and include the body", function (done) {
-      nock("http://api.pusherapp.com")
+      nock("http://localhost")
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=12bf5995ac4b1285a6d87b2dafb92590&auth_signature=Y",
-          { foo: "one", bar: [1, 2, 3], baz: 4321 }
+          { foo: "one", bar: [1, 2, 3], baz: 4321 },
         )
-        .reply(200, "{}")
+        .reply(200, "{}");
 
-      pusher
+      sockudo
         .post({
           path: "/test",
           body: { foo: "one", bar: [1, 2, 3], baz: 4321 },
         })
         .then(() => done())
-        .catch(done)
-    })
+        .catch(done);
+    });
 
     it("should set the request content type to application/json", function (done) {
-      nock("http://api.pusherapp.com", {
+      nock("http://localhost", {
         reqheaders: {
           "content-type": "application/json",
-          host: "api.pusherapp.com",
+          host: "localhost",
           "content-length": 2,
         },
       })
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=Y",
-          {}
+          {},
         )
-        .reply(201, '{"returned key": 101010101}')
+        .reply(201, '{"returned key": 101010101}');
 
-      pusher
+      sockudo
         .post({ path: "/test", body: {} })
         .then(() => done())
-        .catch(done)
-    })
+        .catch(done);
+    });
 
     it("should resolve to the response", function (done) {
-      nock("http://api.pusherapp.com")
+      nock("http://localhost")
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=Y",
-          {}
+          {},
         )
-        .reply(201, '{"returned key": 101010101}')
+        .reply(201, '{"returned key": 101010101}');
 
-      pusher
+      sockudo
         .post({ path: "/test", body: {} })
         .then((response) => {
-          expect(response.status).to.equal(201)
+          expect(response.status).to.equal(201);
           return response.text().then((body) => {
-            expect(body).to.equal('{"returned key": 101010101}')
-            done()
-          })
+            expect(body).to.equal('{"returned key": 101010101}');
+            done();
+          });
         })
-        .catch(done)
-    })
+        .catch(done);
+    });
 
-    it("should reject with a RequestError if Pusher responds with 4xx", function (done) {
-      nock("http://api.pusherapp.com")
+    it("should reject with a RequestError if Sockudo responds with 4xx", function (done) {
+      nock("http://localhost")
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=Y",
-          {}
+          {},
         )
-        .reply(403, "NOPE")
+        .reply(403, "NOPE");
 
-      pusher.post({ path: "/test", body: {} }).catch((error) => {
-        expect(error).to.be.a(Pusher.RequestError)
-        expect(error.message).to.equal("Unexpected status code 403")
+      sockudo.post({ path: "/test", body: {} }).catch((error) => {
+        expect(error).to.be.a(Sockudo.RequestError);
+        expect(error.message).to.equal("Unexpected status code 403");
         expect(error.url).to.match(
-          /^http:\/\/api.pusherapp.com\/apps\/10000\/test\?auth_key=aaaa&auth_timestamp=[0-9]+&auth_version=1\.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=[a-f0-9]+$/
-        )
-        expect(error.status).to.equal(403)
-        expect(error.body).to.equal("NOPE")
-        done()
-      })
-    })
+          /^http:\/\/localhost\/apps\/10000\/test\?auth_key=aaaa&auth_timestamp=[0-9]+&auth_version=1\.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=[a-f0-9]+$/,
+        );
+        expect(error.status).to.equal(403);
+        expect(error.body).to.equal("NOPE");
+        done();
+      });
+    });
 
     it("should respect the encryption, host and port config", function (done) {
-      const pusher = new Pusher({
+      const sockudo = new Sockudo({
         appId: 10000,
         key: "aaaa",
         secret: "tofu",
         useTLS: true,
         host: "example.com",
         port: 1234,
-      })
+      });
       nock("https://example.com:1234")
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=Y",
-          {}
+          {},
         )
-        .reply(201, '{"returned key": 101010101}')
+        .reply(201, '{"returned key": 101010101}');
 
-      pusher
+      sockudo
         .post({ path: "/test", body: {} })
         .then(() => done())
-        .catch(done)
-    })
+        .catch(done);
+    });
 
     it("should respect the timeout when specified", function (done) {
-      const pusher = new Pusher({
+      const sockudo = new Sockudo({
         appId: 10000,
         key: "aaaa",
         secret: "tofu",
         timeout: 100,
-      })
-      nock("http://api.pusherapp.com")
+      });
+      nock("http://localhost")
         .filteringPath(function (path) {
           return path
             .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
-            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
         })
         .post(
           "/apps/10000/test?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=Y",
-          {}
+          {},
         )
         .delayConnection(101)
-        .reply(200)
+        .reply(200);
 
-      pusher.post({ path: "/test", body: {} }).catch((error) => {
-        expect(error).to.be.a(Pusher.RequestError)
-        expect(error.message).to.equal("Request failed with an error")
-        expect(error.error.name).to.eql("AbortError")
+      sockudo.post({ path: "/test", body: {} }).catch((error) => {
+        expect(error).to.be.a(Sockudo.RequestError);
+        expect(error.message).to.equal("Request failed with an error");
+        expect(error.error.name).to.eql("AbortError");
         expect(error.url).to.match(
-          /^http:\/\/api.pusherapp.com\/apps\/10000\/test\?auth_key=aaaa&auth_timestamp=[0-9]+&auth_version=1\.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=[a-f0-9]+$/
-        )
-        expect(error.status).to.equal(undefined)
-        expect(error.body).to.equal(undefined)
-        done()
-      })
-    })
-  })
-})
+          /^http:\/\/localhost\/apps\/10000\/test\?auth_key=aaaa&auth_timestamp=[0-9]+&auth_version=1\.0&body_md5=99914b932bd37a50b983c5e7c90ae93b&auth_signature=[a-f0-9]+$/,
+        );
+        expect(error.status).to.equal(undefined);
+        expect(error.body).to.equal(undefined);
+        done();
+      });
+    });
+  });
+});

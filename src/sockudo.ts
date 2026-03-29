@@ -1,0 +1,330 @@
+import crypto from "crypto";
+import url from "url";
+import * as auth from "./auth";
+import { RequestError, WebHookError } from "./errors";
+import * as events from "./events";
+import * as requests from "./requests";
+import SockudoConfig = require("./sockudo_config");
+import Token = require("./token");
+import WebHook = require("./webhook");
+import type {
+  BatchEvent,
+  ChannelAuthResponse,
+  GetOptions,
+  Options,
+  PostOptions,
+  PresenceChannelData,
+  ResponseWithIdempotency,
+  SignedQueryStringOptions,
+  TriggerParams,
+  UserAuthResponse,
+  UserChannelData,
+  WebHookRequest,
+} from "./types";
+
+function validateChannel(channel: string): void {
+  if (
+    typeof channel !== "string" ||
+    channel === "" ||
+    channel.match(/[^A-Za-z0-9_\-=@,.;]/)
+  ) {
+    throw new Error(`Invalid channel name: '${channel}'`);
+  }
+  if (channel.length > 200) {
+    throw new Error(`Channel name too long: '${channel}'`);
+  }
+}
+
+function validateSocketId(socketId: string): void {
+  if (
+    typeof socketId !== "string" ||
+    socketId === "" ||
+    !socketId.match(/^\d+\.\d+$/)
+  ) {
+    throw new Error(`Invalid socket id: '${socketId}'`);
+  }
+}
+
+function validateUserId(userId: string): void {
+  if (typeof userId !== "string" || userId === "") {
+    throw new Error(`Invalid user id: '${userId}'`);
+  }
+}
+
+function validateUserData(userData: UserChannelData): void {
+  if (userData == null || typeof userData !== "object") {
+    throw new Error(`Invalid user data: '${userData}'`);
+  }
+  validateUserId(userData.id);
+}
+
+function generateBase64UrlId(): string {
+  return crypto
+    .randomBytes(12)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+class Sockudo {
+  config: SockudoConfig;
+  idempotencyBaseId: string;
+  publishSerial: number;
+  autoIdempotencyKey: boolean;
+  maxRetries: number;
+
+  static Token = Token;
+  static RequestError = RequestError;
+  static WebHookError = WebHookError;
+  authenticate!: (
+    socketId: string,
+    channel: string,
+    data?: PresenceChannelData,
+  ) => ChannelAuthResponse;
+
+  constructor(options: Options) {
+    this.config = new SockudoConfig(options);
+    this.idempotencyBaseId = generateBase64UrlId();
+    this.publishSerial = 0;
+    this.autoIdempotencyKey =
+      options.autoIdempotencyKey !== undefined
+        ? options.autoIdempotencyKey
+        : true;
+    this.maxRetries = options.maxRetries !== undefined ? options.maxRetries : 3;
+  }
+
+  static forURL(sockudoUrl: string, options?: Partial<Options>): Sockudo {
+    const apiUrl = url.parse(sockudoUrl);
+    const apiPath = apiUrl.pathname?.split("/") ?? [];
+    const apiAuth = apiUrl.auth?.split(":");
+
+    if (
+      !apiUrl.protocol ||
+      !apiUrl.hostname ||
+      !apiAuth ||
+      apiPath.length === 0
+    ) {
+      throw new Error("Invalid Sockudo URL");
+    }
+
+    return new Sockudo({
+      ...options,
+      scheme: apiUrl.protocol.replace(/:$/, ""),
+      host: apiUrl.hostname,
+      port: apiUrl.port ? parseInt(apiUrl.port, 10) : undefined,
+      appId: parseInt(apiPath[apiPath.length - 1], 10),
+      key: apiAuth[0],
+      secret: apiAuth[1],
+    } as Options);
+  }
+
+  static forCluster(
+    cluster: string,
+    options: Omit<Options, "cluster" | "host">,
+  ): Sockudo {
+    return new Sockudo({
+      ...options,
+      host: `api-${cluster}.sockudo.com`,
+    } as Options);
+  }
+
+  authorizeChannel(
+    socketId: string,
+    channel: string,
+    data?: PresenceChannelData,
+  ): ChannelAuthResponse {
+    validateSocketId(socketId);
+    validateChannel(channel);
+
+    return auth.getSocketSignature(
+      this,
+      this.config.token,
+      channel,
+      socketId,
+      data,
+    );
+  }
+
+  authenticateUser(
+    socketId: string,
+    userData: UserChannelData,
+  ): UserAuthResponse {
+    validateSocketId(socketId);
+    validateUserData(userData);
+
+    return auth.getSocketSignatureForUser(
+      this.config.token,
+      socketId,
+      userData,
+    );
+  }
+
+  sendToUser(
+    userId: string,
+    event: string,
+    data: unknown,
+  ): Promise<ResponseWithIdempotency> {
+    if (event.length > 200) {
+      throw new Error(`Too long event name: '${event}'`);
+    }
+    validateUserId(userId);
+    return events.trigger(this, [`#server-to-user-${userId}`], event, data);
+  }
+
+  terminateUserConnections(userId: string): Promise<ResponseWithIdempotency> {
+    validateUserId(userId);
+    return this.post({
+      path: `/users/${userId}/terminate_connections`,
+      body: {},
+    });
+  }
+
+  trigger(
+    channels: string | string[],
+    event: string,
+    data: unknown,
+    params?: TriggerParams,
+  ): Promise<ResponseWithIdempotency> {
+    if (params?.socket_id) {
+      validateSocketId(params.socket_id);
+    }
+
+    const normalizedChannels = Array.isArray(channels) ? channels : [channels];
+    if (event.length > 200) {
+      throw new Error(`Too long event name: '${event}'`);
+    }
+    if (normalizedChannels.length > 100) {
+      throw new Error("Can't trigger a message to more than 100 channels");
+    }
+    for (const channel of normalizedChannels) {
+      validateChannel(channel);
+    }
+
+    const serial = this.publishSerial++;
+    let idempotencyKey = params?.idempotency_key;
+    let resolvedParams = params;
+
+    if (
+      this.autoIdempotencyKey &&
+      (!params || params.idempotency_key === undefined)
+    ) {
+      idempotencyKey = `${this.idempotencyBaseId}:${serial}`;
+      resolvedParams = {
+        ...params,
+        idempotency_key: idempotencyKey,
+      };
+    }
+
+    const attempt = (remaining: number): Promise<ResponseWithIdempotency> => {
+      return events
+        .trigger(this, normalizedChannels, event, data, resolvedParams)
+        .then(
+          (response) => {
+            response.idempotencyKey = idempotencyKey;
+            return response;
+          },
+          (err: RequestError) => {
+            const statusCode =
+              err.statusCode !== undefined ? err.statusCode : err.status;
+            const isAbortError =
+              err.error &&
+              ((err.error as any).name === "AbortError" ||
+                (err.error as any).type === "aborted");
+            const isRetryable =
+              !isAbortError && (statusCode === undefined || statusCode >= 500);
+            if (isRetryable && remaining > 1) {
+              return attempt(remaining - 1);
+            }
+            throw err;
+          },
+        );
+    };
+
+    return attempt(this.maxRetries);
+  }
+
+  triggerBatch(batch: BatchEvent[]): Promise<ResponseWithIdempotency> {
+    const serial = this.publishSerial++;
+    const batchKeys: Array<NonNullable<BatchEvent["idempotency_key"]>> = [];
+    const normalizedBatch = [...batch];
+
+    if (this.autoIdempotencyKey) {
+      for (let i = 0; i < normalizedBatch.length; i++) {
+        if (normalizedBatch[i].idempotency_key === undefined) {
+          const key = `${this.idempotencyBaseId}:${serial}:${i}`;
+          normalizedBatch[i] = {
+            ...normalizedBatch[i],
+            idempotency_key: key,
+          };
+          batchKeys.push(key);
+        } else {
+          const existingKey = normalizedBatch[i].idempotency_key;
+          if (existingKey !== undefined) {
+            batchKeys.push(existingKey);
+          }
+        }
+      }
+    }
+
+    const attempt = (remaining: number): Promise<ResponseWithIdempotency> => {
+      return events.triggerBatch(this, normalizedBatch).then(
+        (response) => {
+          response.idempotencyKeys = batchKeys;
+          return response;
+        },
+        (err: RequestError) => {
+          const statusCode =
+            err.statusCode !== undefined ? err.statusCode : err.status;
+          const isAbortError =
+            err.error &&
+            ((err.error as any).name === "AbortError" ||
+              (err.error as any).type === "aborted");
+          const isRetryable =
+            !isAbortError && (statusCode === undefined || statusCode >= 500);
+          if (isRetryable && remaining > 1) {
+            return attempt(remaining - 1);
+          }
+          throw err;
+        },
+      );
+    };
+
+    return attempt(this.maxRetries);
+  }
+
+  post(options: PostOptions): Promise<ResponseWithIdempotency> {
+    return requests.send(this.config, {
+      ...options,
+      method: "POST",
+    }) as Promise<ResponseWithIdempotency>;
+  }
+
+  get(options: GetOptions): Promise<ResponseWithIdempotency> {
+    return requests.send(this.config, {
+      ...options,
+      method: "GET",
+    }) as Promise<ResponseWithIdempotency>;
+  }
+
+  webhook(request: WebHookRequest): WebHook {
+    return new WebHook(this.config.token, request);
+  }
+
+  createSignedQueryString(options: SignedQueryStringOptions): string {
+    return requests.createSignedQueryString(this.config.token, options);
+  }
+
+  channelSharedSecret(channel: string): Buffer {
+    return crypto
+      .createHash("sha256")
+      .update(
+        Buffer.concat([Buffer.from(channel), this.config.encryptionMasterKey!]),
+      )
+      .digest();
+  }
+}
+
+Sockudo.prototype.authenticate = Sockudo.prototype.authorizeChannel;
+
+export = Sockudo;

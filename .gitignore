@@ -22,4 +22,6 @@ logs
 results
 
 node_modules
+dist
+lib
 parse.js
