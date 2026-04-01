@@ -46,8 +46,8 @@ jobs:
           echo "TAG=$TAG" >> $GITHUB_ENV
       - name: Setup git
         run: |
-          git config user.email "pusher-ci@pusher.com"
-          git config user.name "Pusher CI"
+          git config user.email "ci@sockudo.io"
+          git config user.name "Sockudo CI"
       - name: Prepare description
         run: |
           csplit -s CHANGELOG.md "/##/" {1}
