@@ -3,6 +3,10 @@
   "description": "Node.js client to interact with the Sockudo REST API",
   "version": "1.0.0",
   "author": "Sockudo",
+  "homepage": "https://github.com/sockudo/sockudo-http-node#readme",
+  "bugs": {
+    "url": "https://github.com/sockudo/sockudo-http-node/issues"
+  },
   "contributors": [
     {
       "name": "fabrik42",
@@ -26,11 +30,11 @@
     "is-base64": "^1.1.0",
     "node-fetch": "^2.7.0",
     "tweetnacl": "^1.0.0",
-    "tweetnacl-util": "^0.15.0",
-    "@types/node-fetch": "^2.5.7"
+    "tweetnacl-util": "^0.15.0"
   },
   "devDependencies": {
     "@types/node": "^14.14.6",
+    "@types/node-fetch": "^2.5.7",
     "expect.js": "=0.3.1",
     "express": "^4.22.1",
     "https-proxy-agent": "^5.0.0",
@@ -57,6 +61,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "local-test": "npx mocha 'tests/integration/**/*.js'",
     "test": "npx mocha 'tests/{integration,remote}/**/*.js'",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -71,10 +76,23 @@
     "realtime"
   ],
   "license": "MIT",
-  "repository": "git://github.com/sockudo/sockudo-http-node",
-  "main": "dist/sockudo",
-  "typings": "index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sockudo/sockudo-http-node.git"
+  },
+  "files": [
+    "dist",
+    "index.d.ts",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE.txt"
+  ],
+  "main": "dist/sockudo.js",
+  "types": "index.d.ts",
   "engines": {
-    "node": ">= 4.0.0"
+    "node": ">=16"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
