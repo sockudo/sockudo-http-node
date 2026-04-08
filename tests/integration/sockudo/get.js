@@ -147,4 +147,32 @@ describe("Sockudo", function () {
       });
     });
   });
+
+  describe("#channelHistory", function () {
+    it("should call the channel history endpoint with expected query params", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/history-room/history?auth_key=111111&auth_timestamp=X&auth_version=1.0&cursor=abc&direction=newest_first&end_serial=20&end_time_ms=2000&limit=50&start_serial=10&start_time_ms=1000&auth_signature=Y",
+        )
+        .reply(200, "{}");
+
+      sockudo
+        .channelHistory("history-room", {
+          limit: 50,
+          direction: "newest_first",
+          cursor: "abc",
+          start_serial: 10,
+          end_serial: 20,
+          start_time_ms: 1000,
+          end_time_ms: 2000,
+        })
+        .then(() => done())
+        .catch(done);
+    });
+  });
 });

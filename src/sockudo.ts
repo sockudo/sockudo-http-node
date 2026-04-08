@@ -307,6 +307,17 @@ class Sockudo {
     }) as Promise<ResponseWithIdempotency>;
   }
 
+  channelHistory(
+    channel: string,
+    params: GetOptions["params"] = {},
+  ): Promise<ResponseWithIdempotency> {
+    validateChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/history`,
+      params,
+    });
+  }
+
   webhook(request: WebHookRequest): WebHook {
     return new WebHook(this.config.token, request);
   }

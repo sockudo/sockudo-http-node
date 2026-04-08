@@ -54,6 +54,16 @@ export interface RequestOptions {
 
 export interface GetOptions extends RequestOptions {}
 
+export interface HistoryParams extends RequestParams {
+  limit?: number;
+  direction?: string;
+  cursor?: string;
+  start_serial?: number;
+  end_serial?: number;
+  start_time_ms?: number;
+  end_time_ms?: number;
+}
+
 export interface PostOptions extends RequestOptions {
   body: unknown;
 }

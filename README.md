@@ -335,6 +335,19 @@ npm install
 npm test
 ```
 
+## Channel History
+
+```javascript
+const page = await sockudo.channelHistory("my-channel", {
+  limit: 50,
+  direction: "newest_first",
+})
+
+const nextPage = await sockudo.channelHistory("my-channel", {
+  cursor: "opaque-cursor-from-previous-page",
+})
+```
+
 ## Pusher SDK Compatibility
 
 Sockudo implements the full Pusher HTTP API. If you prefer to use the official `pusher` npm package or are migrating from Pusher, point it at your Sockudo instance without any other changes:

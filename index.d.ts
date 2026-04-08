@@ -22,6 +22,10 @@ declare class Sockudo {
   triggerBatch(events: Array<Sockudo.BatchEvent>): Promise<Response>;
 
   get(opts: Sockudo.GetOptions): Promise<Response>;
+  channelHistory(
+    channel: string,
+    params?: Sockudo.HistoryParams,
+  ): Promise<Response>;
   post(opts: Sockudo.PostOptions): Promise<Response>;
 
   /**
@@ -117,6 +121,15 @@ declare namespace Sockudo {
     params?: Params;
   }
   export type GetOptions = RequestOptions;
+  export interface HistoryParams extends Params {
+    limit?: number;
+    direction?: string;
+    cursor?: string;
+    start_serial?: number;
+    end_serial?: number;
+    start_time_ms?: number;
+    end_time_ms?: number;
+  }
   export interface PostOptions extends RequestOptions {
     body: string;
   }
