@@ -15,7 +15,10 @@ describe("Sockudo (integration)", function () {
     });
 
     beforeEach(function () {
-      sockudo = new Sockudo.forURL(process.env.SOCKUDO_URL, {
+      if (!process.env.SOCKUDO_URL) {
+        this.skip();
+      }
+      sockudo = Sockudo.forURL(process.env.SOCKUDO_URL, {
         agent: new HttpsProxyAgent("http://localhost:8321"),
       });
     });

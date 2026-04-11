@@ -11,6 +11,10 @@ import type {
   BatchEvent,
   ChannelAuthResponse,
   GetOptions,
+  PresenceHistoryPage,
+  PresenceHistoryParams,
+  PresenceSnapshot,
+  PresenceSnapshotParams,
   Options,
   PostOptions,
   PresenceChannelData,
@@ -32,6 +36,15 @@ function validateChannel(channel: string): void {
   }
   if (channel.length > 200) {
     throw new Error(`Channel name too long: '${channel}'`);
+  }
+}
+
+function validatePresenceChannel(channel: string): void {
+  validateChannel(channel);
+  if (!channel.startsWith("presence-")) {
+    throw new Error(
+      `Presence history is only available for presence channels: '${channel}'`,
+    );
   }
 }
 
@@ -316,6 +329,28 @@ class Sockudo {
       path: `/channels/${channel}/history`,
       params,
     });
+  }
+
+  channelPresenceHistory(
+    channel: string,
+    params: PresenceHistoryParams = {},
+  ): Promise<PresenceHistoryPage> {
+    validatePresenceChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/presence/history`,
+      params,
+    }).then((response) => response.json() as Promise<PresenceHistoryPage>);
+  }
+
+  channelPresenceSnapshot(
+    channel: string,
+    params: PresenceSnapshotParams = {},
+  ): Promise<PresenceSnapshot> {
+    validatePresenceChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/presence/history/snapshot`,
+      params,
+    }).then((response) => response.json() as Promise<PresenceSnapshot>);
   }
 
   webhook(request: WebHookRequest): WebHook {

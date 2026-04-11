@@ -175,4 +175,108 @@ describe("Sockudo", function () {
         .catch(done);
     });
   });
+
+  describe("#channelPresenceHistory", function () {
+    it("should call the presence history endpoint with expected query params", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/presence-history-room/presence/history?auth_key=111111&auth_timestamp=X&auth_version=1.0&cursor=abc&direction=newest_first&end_serial=20&end_time_ms=2000&limit=50&start_serial=10&start_time_ms=1000&auth_signature=Y",
+        )
+        .reply(200, "{}");
+
+      sockudo
+        .channelPresenceHistory("presence-history-room", {
+          limit: 50,
+          direction: "newest_first",
+          cursor: "abc",
+          start_serial: 10,
+          end_serial: 20,
+          start_time_ms: 1000,
+          end_time_ms: 2000,
+        })
+        .then(() => done())
+        .catch(done);
+    });
+
+    it("should resolve to the parsed presence history page", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/presence-history-room/presence/history?auth_key=111111&auth_timestamp=X&auth_version=1.0&auth_signature=Y",
+        )
+        .reply(200, {
+          items: [
+            {
+              stream_id: "stream-1",
+              serial: 2,
+              published_at_ms: 1700000000002,
+              event: "member_removed",
+              cause: "disconnect",
+              user_id: "user-2",
+              connection_id: "230423.3434",
+              dead_node_id: null,
+              payload_size_bytes: 123,
+              presence_event: {
+                stream_id: "stream-1",
+                serial: 2,
+                published_at_ms: 1700000000002,
+                event: "member_removed",
+                cause: "disconnect",
+                user_id: "user-2",
+                connection_id: "230423.3434",
+                user_info: { name: "Ada" },
+                dead_node_id: null,
+              },
+            },
+          ],
+          direction: "newest_first",
+          limit: 100,
+          has_more: false,
+          next_cursor: null,
+          bounds: {
+            start_serial: null,
+            end_serial: null,
+            start_time_ms: null,
+            end_time_ms: null,
+          },
+          continuity: {
+            stream_id: "stream-1",
+            oldest_available_serial: 1,
+            newest_available_serial: 2,
+            oldest_available_published_at_ms: 1700000000001,
+            newest_available_published_at_ms: 1700000000002,
+            retained_events: 2,
+            retained_bytes: 512,
+            complete: true,
+            truncated_by_retention: false,
+          },
+        });
+
+      sockudo
+        .channelPresenceHistory("presence-history-room")
+        .then((page) => {
+          expect(page.items).to.have.length(1);
+          expect(page.items[0].event).to.equal("member_removed");
+          expect(page.items[0].presence_event.user_id).to.equal("user-2");
+          expect(page.continuity.retained_events).to.equal(2);
+          done();
+        })
+        .catch(done);
+    });
+
+    it("should reject non-presence channels before making a request", function () {
+      expect(function () {
+        sockudo.channelPresenceHistory("public-room");
+      }).to.throwError(/Presence history is only available/);
+    });
+  });
 });

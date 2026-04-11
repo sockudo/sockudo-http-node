@@ -6,7 +6,10 @@ describe("Sockudo (integration)", function () {
   let sockudo;
 
   beforeEach(function () {
-    sockudo = new Sockudo.forURL(process.env.SOCKUDO_URL);
+    if (!process.env.SOCKUDO_URL) {
+      this.skip();
+    }
+    sockudo = Sockudo.forURL(process.env.SOCKUDO_URL);
   });
 
   describe("#get", function () {

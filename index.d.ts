@@ -26,6 +26,10 @@ declare class Sockudo {
     channel: string,
     params?: Sockudo.HistoryParams,
   ): Promise<Response>;
+  channelPresenceHistory(
+    channel: string,
+    params?: Sockudo.PresenceHistoryParams,
+  ): Promise<Sockudo.PresenceHistoryPage>;
   post(opts: Sockudo.PostOptions): Promise<Response>;
 
   /**
@@ -129,6 +133,74 @@ declare namespace Sockudo {
     end_serial?: number;
     start_time_ms?: number;
     end_time_ms?: number;
+  }
+
+  export type HistoryDirection = "newest_first" | "oldest_first";
+
+  export interface PresenceHistoryParams extends HistoryParams {
+    direction?: HistoryDirection;
+  }
+
+  export type PresenceHistoryEventKind = "member_added" | "member_removed";
+  export type PresenceHistoryEventCause =
+    | "join"
+    | "disconnect"
+    | "orphan_cleanup"
+    | "timeout"
+    | "forced_disconnect";
+
+  export interface PresenceHistoryEventPayload {
+    stream_id: string;
+    serial: number;
+    published_at_ms: number;
+    event: PresenceHistoryEventKind;
+    cause: PresenceHistoryEventCause;
+    user_id: string;
+    connection_id?: string | null;
+    user_info?: { [key: string]: any } | null;
+    dead_node_id?: string | null;
+  }
+
+  export interface PresenceHistoryItem {
+    stream_id: string;
+    serial: number;
+    published_at_ms: number;
+    event: PresenceHistoryEventKind;
+    cause: PresenceHistoryEventCause;
+    user_id: string;
+    connection_id?: string | null;
+    dead_node_id?: string | null;
+    payload_size_bytes: number;
+    presence_event: PresenceHistoryEventPayload;
+  }
+
+  export interface PresenceHistoryBounds {
+    start_serial?: number | null;
+    end_serial?: number | null;
+    start_time_ms?: number | null;
+    end_time_ms?: number | null;
+  }
+
+  export interface PresenceHistoryContinuity {
+    stream_id?: string | null;
+    oldest_available_serial?: number | null;
+    newest_available_serial?: number | null;
+    oldest_available_published_at_ms?: number | null;
+    newest_available_published_at_ms?: number | null;
+    retained_events: number;
+    retained_bytes: number;
+    complete: boolean;
+    truncated_by_retention: boolean;
+  }
+
+  export interface PresenceHistoryPage {
+    items: Array<PresenceHistoryItem>;
+    direction: HistoryDirection;
+    limit: number;
+    has_more: boolean;
+    next_cursor?: string | null;
+    bounds: PresenceHistoryBounds;
+    continuity: PresenceHistoryContinuity;
   }
   export interface PostOptions extends RequestOptions {
     body: string;
