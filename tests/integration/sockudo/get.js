@@ -176,6 +176,71 @@ describe("Sockudo", function () {
     });
   });
 
+  describe("#getMessage", function () {
+    it("should call the latest-message endpoint and decode the payload", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/chat:room-1/messages/msg:1?auth_key=111111&auth_timestamp=X&auth_version=1.0&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          item: {
+            message_serial: "msg:1",
+            action: "update",
+            data: "hello brave",
+          },
+        });
+
+      sockudo
+        .getMessage("chat:room-1", "msg:1")
+        .then((payload) => {
+          expect(payload.item.message_serial).to.equal("msg:1");
+          expect(payload.item.data).to.equal("hello brave");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe("#getMessageVersions", function () {
+    it("should call the versions endpoint with expected query params", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/chat:room-1/messages/msg:1/versions?auth_key=111111&auth_timestamp=X&auth_version=1.0&cursor=abc&direction=oldest_first&limit=10&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          direction: "oldest_first",
+          limit: 10,
+          has_more: false,
+          items: [{ message_serial: "msg:1", action: "update", data: "hello" }],
+        });
+
+      sockudo
+        .getMessageVersions("chat:room-1", "msg:1", {
+          limit: 10,
+          direction: "oldest_first",
+          cursor: "abc",
+        })
+        .then((payload) => {
+          expect(payload.limit).to.equal(10);
+          expect(payload.items.length).to.equal(1);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
   describe("#channelPresenceHistory", function () {
     it("should call the presence history endpoint with expected query params", function (done) {
       nock("http://localhost")
@@ -277,6 +342,65 @@ describe("Sockudo", function () {
       expect(function () {
         sockudo.channelPresenceHistory("public-room");
       }).to.throwError(/Presence history is only available/);
+    });
+  });
+
+  describe("#getMessage", function () {
+    it("should call the latest-message endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/chat:room-1/messages/msg:1?auth_key=111111&auth_timestamp=X&auth_version=1.0&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          item: { message_serial: "msg:1", action: "update" },
+        });
+
+      sockudo
+        .getMessage("chat:room-1", "msg:1")
+        .then((payload) => {
+          expect(payload.item.message_serial).to.equal("msg:1");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe("#getMessageVersions", function () {
+    it("should call the message versions endpoint with params", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/chat:room-1/messages/msg:1/versions?auth_key=111111&auth_timestamp=X&auth_version=1.0&cursor=abc&direction=oldest_first&limit=10&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          direction: "oldest_first",
+          limit: 10,
+          has_more: false,
+          items: [],
+        });
+
+      sockudo
+        .getMessageVersions("chat:room-1", "msg:1", {
+          limit: 10,
+          direction: "oldest_first",
+          cursor: "abc",
+        })
+        .then((payload) => {
+          expect(payload.limit).to.equal(10);
+          done();
+        })
+        .catch(done);
     });
   });
 });

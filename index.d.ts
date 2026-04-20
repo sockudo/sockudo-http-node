@@ -25,7 +25,31 @@ declare class Sockudo {
   channelHistory(
     channel: string,
     params?: Sockudo.HistoryParams,
-  ): Promise<Response>;
+  ): Promise<Sockudo.HistoryPage>;
+  getMessage(
+    channel: string,
+    messageSerial: string,
+  ): Promise<Sockudo.GetMessageResponse>;
+  getMessageVersions(
+    channel: string,
+    messageSerial: string,
+    params?: Sockudo.MessageVersionsParams,
+  ): Promise<Sockudo.ListMessageVersionsResponse>;
+  updateMessage(
+    channel: string,
+    messageSerial: string,
+    body: Record<string, unknown>,
+  ): Promise<Sockudo.MutationResponse>;
+  deleteMessage(
+    channel: string,
+    messageSerial: string,
+    body?: Record<string, unknown>,
+  ): Promise<Sockudo.MutationResponse>;
+  appendMessage(
+    channel: string,
+    messageSerial: string,
+    body: { data: string; [key: string]: unknown },
+  ): Promise<Sockudo.MutationResponse>;
   channelPresenceHistory(
     channel: string,
     params?: Sockudo.PresenceHistoryParams,
@@ -134,6 +158,48 @@ declare namespace Sockudo {
     start_time_ms?: number;
     end_time_ms?: number;
   }
+  export interface HistoryItem {
+    stream_id?: string | null;
+    serial?: number | null;
+    published_at_ms?: number | null;
+    message_id?: string | null;
+    event_name?: string | null;
+    operation_kind?: string | null;
+    payload_size_bytes?: number | null;
+    message?: { [key: string]: unknown } | null;
+  }
+  export interface HistoryBounds {
+    start_serial?: number | null;
+    end_serial?: number | null;
+    start_time_ms?: number | null;
+    end_time_ms?: number | null;
+  }
+  export interface HistoryContinuity {
+    stream_id?: string | null;
+    oldest_available_serial?: number | null;
+    newest_available_serial?: number | null;
+    oldest_available_published_at_ms?: number | null;
+    newest_available_published_at_ms?: number | null;
+    retained_messages: number;
+    retained_bytes: number;
+    complete: boolean;
+    truncated_by_retention: boolean;
+  }
+  export interface HistoryPage {
+    items: Array<HistoryItem>;
+    direction: string;
+    limit: number;
+    has_more: boolean;
+    next_cursor?: string | null;
+    bounds: HistoryBounds;
+    continuity: HistoryContinuity;
+    stream_state?: { [key: string]: unknown };
+  }
+  export interface MessageVersionsParams extends Params {
+    limit?: number;
+    direction?: string;
+    cursor?: string;
+  }
 
   export type HistoryDirection = "newest_first" | "oldest_first";
 
@@ -201,6 +267,46 @@ declare namespace Sockudo {
     next_cursor?: string | null;
     bounds: PresenceHistoryBounds;
     continuity: PresenceHistoryContinuity;
+  }
+  export interface MessageVersionInfo {
+    serial: string;
+    timestamp_ms: number;
+    client_id?: string | null;
+    description?: string | null;
+    metadata?: { [key: string]: unknown } | null;
+  }
+  export interface VersionedRealtimeMessage {
+    event?: string;
+    channel?: string;
+    data?: any;
+    name?: string;
+    serial?: number;
+    action: "create" | "update" | "delete" | "append" | "summary";
+    message_serial: string;
+    history_serial?: number | null;
+    delivery_serial?: number | null;
+    version?: MessageVersionInfo | null;
+    extras?: { [key: string]: unknown };
+  }
+  export interface GetMessageResponse {
+    channel: string;
+    item: VersionedRealtimeMessage;
+  }
+  export interface ListMessageVersionsResponse {
+    channel: string;
+    direction: string;
+    limit: number;
+    has_more: boolean;
+    next_cursor?: string | null;
+    items: Array<VersionedRealtimeMessage>;
+  }
+  export interface MutationResponse {
+    channel: string;
+    message_serial: string;
+    action: "create" | "update" | "delete" | "append" | "summary";
+    accepted: boolean;
+    version_serial?: string | null;
+    status: string;
   }
   export interface PostOptions extends RequestOptions {
     body: string;

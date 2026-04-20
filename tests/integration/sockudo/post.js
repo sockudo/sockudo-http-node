@@ -174,4 +174,103 @@ describe("Sockudo", function () {
       });
     });
   });
+
+  describe("#updateMessage", function () {
+    it("should call the message update endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .post(
+          "/apps/10000/channels/chat:room-1/messages/msg:1/update?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=5cd6e1d8509654b09eb942c6e1b3efe4&auth_signature=Y",
+          '{"data":"hello brave","description":"replace base"}',
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          action: "update",
+          accepted: true,
+          status: "applied",
+        });
+
+      sockudo
+        .updateMessage("chat:room-1", "msg:1", {
+          data: "hello brave",
+          description: "replace base",
+        })
+        .then((payload) => {
+          expect(payload.action).to.equal("update");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe("#deleteMessage", function () {
+    it("should call the message delete endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .post(
+          "/apps/10000/channels/chat:room-1/messages/msg:1/delete?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=ca60a32ee8dbfc527332ba3b02a6457a&auth_signature=Y",
+          '{"clear_fields":["data","extras"],"description":"soft delete"}',
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          action: "delete",
+          accepted: true,
+          status: "applied",
+        });
+
+      sockudo
+        .deleteMessage("chat:room-1", "msg:1", {
+          clear_fields: ["data", "extras"],
+          description: "soft delete",
+        })
+        .then((payload) => {
+          expect(payload.action).to.equal("delete");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe("#appendMessage", function () {
+    it("should call the message append endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .post(
+          "/apps/10000/channels/chat:room-1/messages/msg:1/append?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=5f02618871c7f264671e16b581f9a4b6&auth_signature=Y",
+          '{"data":" world","description":"append suffix"}',
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          action: "append",
+          accepted: true,
+          status: "applied",
+        });
+
+      sockudo
+        .appendMessage("chat:room-1", "msg:1", {
+          data: " world",
+          description: "append suffix",
+        })
+        .then((payload) => {
+          expect(payload.action).to.equal("append");
+          done();
+        })
+        .catch(done);
+    });
+  });
 });

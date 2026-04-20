@@ -10,7 +10,12 @@ import WebHook = require("./webhook");
 import type {
   BatchEvent,
   ChannelAuthResponse,
+  GetMessageResponse,
   GetOptions,
+  HistoryPage,
+  ListMessageVersionsResponse,
+  MessageVersionsParams,
+  MutationResponse,
   PresenceHistoryPage,
   PresenceHistoryParams,
   PresenceSnapshot,
@@ -30,7 +35,7 @@ function validateChannel(channel: string): void {
   if (
     typeof channel !== "string" ||
     channel === "" ||
-    channel.match(/[^A-Za-z0-9_\-=@,.;]/)
+    channel.match(/[^A-Za-z0-9_\-=@,.;:]/)
   ) {
     throw new Error(`Invalid channel name: '${channel}'`);
   }
@@ -323,12 +328,72 @@ class Sockudo {
   channelHistory(
     channel: string,
     params: GetOptions["params"] = {},
-  ): Promise<ResponseWithIdempotency> {
+  ): Promise<HistoryPage> {
     validateChannel(channel);
     return this.get({
       path: `/channels/${channel}/history`,
       params,
-    });
+    }).then((response) => response.json() as Promise<HistoryPage>);
+  }
+
+  getMessage(
+    channel: string,
+    messageSerial: string,
+  ): Promise<GetMessageResponse> {
+    validateChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/messages/${messageSerial}`,
+    }).then((response) => response.json() as Promise<GetMessageResponse>);
+  }
+
+  getMessageVersions(
+    channel: string,
+    messageSerial: string,
+    params: MessageVersionsParams = {},
+  ): Promise<ListMessageVersionsResponse> {
+    validateChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/messages/${messageSerial}/versions`,
+      params,
+    }).then(
+      (response) => response.json() as Promise<ListMessageVersionsResponse>,
+    );
+  }
+
+  updateMessage(
+    channel: string,
+    messageSerial: string,
+    body: Record<string, unknown>,
+  ): Promise<MutationResponse> {
+    validateChannel(channel);
+    return this.post({
+      path: `/channels/${channel}/messages/${messageSerial}/update`,
+      body,
+    }).then((response) => response.json() as Promise<MutationResponse>);
+  }
+
+  deleteMessage(
+    channel: string,
+    messageSerial: string,
+    body: Record<string, unknown> = {},
+  ): Promise<MutationResponse> {
+    validateChannel(channel);
+    return this.post({
+      path: `/channels/${channel}/messages/${messageSerial}/delete`,
+      body,
+    }).then((response) => response.json() as Promise<MutationResponse>);
+  }
+
+  appendMessage(
+    channel: string,
+    messageSerial: string,
+    body: { data: string; [key: string]: unknown },
+  ): Promise<MutationResponse> {
+    validateChannel(channel);
+    return this.post({
+      path: `/channels/${channel}/messages/${messageSerial}/append`,
+      body,
+    }).then((response) => response.json() as Promise<MutationResponse>);
   }
 
   channelPresenceHistory(

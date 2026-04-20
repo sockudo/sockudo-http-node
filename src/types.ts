@@ -64,6 +64,47 @@ export interface HistoryParams extends RequestParams {
   end_time_ms?: number;
 }
 
+export interface HistoryItem {
+  stream_id?: string | null;
+  serial?: number | null;
+  published_at_ms?: number | null;
+  message_id?: string | null;
+  event_name?: string | null;
+  operation_kind?: string | null;
+  payload_size_bytes?: number | null;
+  message?: Record<string, unknown> | null;
+}
+
+export interface HistoryBounds {
+  start_serial?: number | null;
+  end_serial?: number | null;
+  start_time_ms?: number | null;
+  end_time_ms?: number | null;
+}
+
+export interface HistoryContinuity {
+  stream_id?: string | null;
+  oldest_available_serial?: number | null;
+  newest_available_serial?: number | null;
+  oldest_available_published_at_ms?: number | null;
+  newest_available_published_at_ms?: number | null;
+  retained_messages: number;
+  retained_bytes: number;
+  complete: boolean;
+  truncated_by_retention: boolean;
+}
+
+export interface HistoryPage {
+  items: HistoryItem[];
+  direction: string;
+  limit: number;
+  has_more: boolean;
+  next_cursor?: string | null;
+  bounds: HistoryBounds;
+  continuity: HistoryContinuity;
+  stream_state?: Record<string, unknown>;
+}
+
 export type HistoryDirection = "newest_first" | "oldest_first";
 
 export interface PresenceHistoryParams extends HistoryParams {
@@ -159,6 +200,57 @@ export interface PresenceSnapshot {
   snapshot_serial?: number | null;
   snapshot_time_ms?: number | null;
   continuity: PresenceHistoryContinuity;
+}
+
+export interface MessageVersionInfo {
+  serial: string;
+  timestamp_ms: number;
+  client_id?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface VersionedRealtimeMessage {
+  event?: string;
+  channel?: string;
+  data?: unknown;
+  name?: string;
+  serial?: number;
+  action: "create" | "update" | "delete" | "append" | "summary";
+  message_serial: string;
+  history_serial?: number | null;
+  delivery_serial?: number | null;
+  version?: MessageVersionInfo | null;
+  extras?: Record<string, unknown>;
+}
+
+export interface GetMessageResponse {
+  channel: string;
+  item: VersionedRealtimeMessage;
+}
+
+export interface ListMessageVersionsResponse {
+  channel: string;
+  direction: string;
+  limit: number;
+  has_more: boolean;
+  next_cursor?: string | null;
+  items: VersionedRealtimeMessage[];
+}
+
+export interface MutationResponse {
+  channel: string;
+  message_serial: string;
+  action: "create" | "update" | "delete" | "append" | "summary";
+  accepted: boolean;
+  version_serial?: string | null;
+  status: string;
+}
+
+export interface MessageVersionsParams extends RequestParams {
+  limit?: number;
+  direction?: string;
+  cursor?: string;
 }
 
 export interface PostOptions extends RequestOptions {
