@@ -273,4 +273,67 @@ describe("Sockudo", function () {
         .catch(done);
     });
   });
+
+  describe("#publishAnnotation", function () {
+    it("should call the annotation publish endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .post(
+          "/apps/10000/channels/chat:room-1/messages/msg:1/annotations?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&body_md5=6212b152d0b9bfe76ea0cd5e73367410&auth_signature=Y",
+          '{"type":"reaction:distinct.v1","name":"like","client_id":"alice"}',
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          annotation_serial: "ann:1",
+          accepted: true,
+        });
+
+      sockudo
+        .publishAnnotation("chat:room-1", "msg:1", {
+          type: "reaction:distinct.v1",
+          name: "like",
+          client_id: "alice",
+        })
+        .then((payload) => {
+          expect(payload.annotation_serial).to.equal("ann:1");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe("#deleteAnnotation", function () {
+    it("should call the annotation delete endpoint", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .delete(
+          "/apps/10000/channels/chat:room-1/messages/msg:1/annotations/ann:1?auth_key=aaaa&auth_timestamp=X&auth_version=1.0&socket_id=123.456&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          annotation_serial: "ann:1",
+          deleted: true,
+        });
+
+      sockudo
+        .deleteAnnotation("chat:room-1", "msg:1", "ann:1", {
+          socket_id: "123.456",
+        })
+        .then((payload) => {
+          expect(payload.deleted).to.equal(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
 });

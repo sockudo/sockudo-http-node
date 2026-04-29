@@ -241,6 +241,48 @@ describe("Sockudo", function () {
     });
   });
 
+  describe("#listAnnotations", function () {
+    it("should call the annotation events endpoint with expected query params", function (done) {
+      nock("http://localhost")
+        .filteringPath(function (path) {
+          return path
+            .replace(/auth_timestamp=[0-9]+/, "auth_timestamp=X")
+            .replace(/auth_signature=[0-9a-f]{64}/, "auth_signature=Y");
+        })
+        .get(
+          "/apps/999/channels/chat:room-1/messages/msg:1/annotations?auth_key=111111&auth_timestamp=X&auth_version=1.0&cursor=abc&direction=oldest_first&limit=10&type=reaction%3Adistinct.v1&auth_signature=Y",
+        )
+        .reply(200, {
+          channel: "chat:room-1",
+          message_serial: "msg:1",
+          direction: "oldest_first",
+          limit: 10,
+          has_more: false,
+          items: [
+            {
+              annotation_serial: "ann:1",
+              type: "reaction:distinct.v1",
+              name: "like",
+              client_id: "alice",
+            },
+          ],
+        });
+
+      sockudo
+        .listAnnotations("chat:room-1", "msg:1", {
+          limit: 10,
+          direction: "oldest_first",
+          cursor: "abc",
+          type: "reaction:distinct.v1",
+        })
+        .then((payload) => {
+          expect(payload.items[0].annotation_serial).to.equal("ann:1");
+          done();
+        })
+        .catch(done);
+    });
+  });
+
   describe("#channelPresenceHistory", function () {
     it("should call the presence history endpoint with expected query params", function (done) {
       nock("http://localhost")

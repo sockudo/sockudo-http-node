@@ -253,6 +253,55 @@ export interface MessageVersionsParams extends RequestParams {
   cursor?: string;
 }
 
+export interface PublishAnnotationBody {
+  type: string;
+  name?: string;
+  clientId?: string;
+  socketId?: string;
+  count?: number;
+  data?: unknown;
+  encoding?: string;
+}
+
+export interface PublishAnnotationResponse {
+  annotationSerial: string;
+}
+
+export interface DeleteAnnotationResponse {
+  annotationSerial: string;
+  deletedAnnotationSerial: string;
+}
+
+export interface AnnotationEventsParams extends RequestParams {
+  type?: string;
+  from_serial?: string;
+  limit?: number;
+  socket_id?: string;
+}
+
+export interface AnnotationEvent {
+  action: "annotation.create" | "annotation.delete";
+  id?: string | null;
+  serial: string;
+  messageSerial: string;
+  type: string;
+  name?: string | null;
+  clientId?: string | null;
+  count?: number | null;
+  data?: unknown;
+  encoding?: string | null;
+  timestamp?: number | null;
+}
+
+export interface AnnotationEventsResponse {
+  channel: string;
+  messageSerial: string;
+  limit: number;
+  hasMore: boolean;
+  nextCursor?: string | null;
+  items: AnnotationEvent[];
+}
+
 export interface PostOptions extends RequestOptions {
   body: unknown;
 }
