@@ -22,6 +22,7 @@ declare class Sockudo {
   triggerBatch(events: Array<Sockudo.BatchEvent>): Promise<Response>;
 
   get(opts: Sockudo.GetOptions): Promise<Response>;
+  delete(opts: Sockudo.GetOptions): Promise<Response>;
   channelHistory(
     channel: string,
     params?: Sockudo.HistoryParams,
@@ -50,6 +51,22 @@ declare class Sockudo {
     messageSerial: string,
     body: { data: string; [key: string]: unknown },
   ): Promise<Sockudo.MutationResponse>;
+  publishAnnotation(
+    channel: string,
+    messageSerial: string,
+    body: Sockudo.PublishAnnotationBody,
+  ): Promise<Sockudo.PublishAnnotationResponse>;
+  deleteAnnotation(
+    channel: string,
+    messageSerial: string,
+    annotationSerial: string,
+    params?: { socket_id?: string },
+  ): Promise<Sockudo.DeleteAnnotationResponse>;
+  listAnnotations(
+    channel: string,
+    messageSerial: string,
+    params?: Sockudo.AnnotationEventsParams,
+  ): Promise<Sockudo.AnnotationEventsResponse>;
   channelPresenceHistory(
     channel: string,
     params?: Sockudo.PresenceHistoryParams,
@@ -199,6 +216,55 @@ declare namespace Sockudo {
     limit?: number;
     direction?: string;
     cursor?: string;
+  }
+
+  export interface PublishAnnotationBody {
+    type: string;
+    name?: string;
+    clientId?: string;
+    socketId?: string;
+    count?: number;
+    data?: any;
+    encoding?: string;
+  }
+
+  export interface PublishAnnotationResponse {
+    annotationSerial: string;
+  }
+
+  export interface DeleteAnnotationResponse {
+    annotationSerial: string;
+    deletedAnnotationSerial: string;
+  }
+
+  export interface AnnotationEventsParams extends Params {
+    type?: string;
+    from_serial?: string;
+    limit?: number;
+    socket_id?: string;
+  }
+
+  export interface AnnotationEvent {
+    action: "annotation.create" | "annotation.delete";
+    id?: string | null;
+    serial: string;
+    messageSerial: string;
+    type: string;
+    name?: string | null;
+    clientId?: string | null;
+    count?: number | null;
+    data?: any;
+    encoding?: string | null;
+    timestamp?: number | null;
+  }
+
+  export interface AnnotationEventsResponse {
+    channel: string;
+    messageSerial: string;
+    limit: number;
+    hasMore: boolean;
+    nextCursor?: string | null;
+    items: Array<AnnotationEvent>;
   }
 
   export type HistoryDirection = "newest_first" | "oldest_first";

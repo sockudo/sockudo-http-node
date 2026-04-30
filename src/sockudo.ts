@@ -9,7 +9,10 @@ import Token = require("./token");
 import WebHook = require("./webhook");
 import type {
   BatchEvent,
+  AnnotationEventsParams,
+  AnnotationEventsResponse,
   ChannelAuthResponse,
+  DeleteAnnotationResponse,
   GetMessageResponse,
   GetOptions,
   HistoryPage,
@@ -23,6 +26,8 @@ import type {
   Options,
   PostOptions,
   PresenceChannelData,
+  PublishAnnotationBody,
+  PublishAnnotationResponse,
   ResponseWithIdempotency,
   SignedQueryStringOptions,
   TriggerParams,
@@ -325,6 +330,13 @@ class Sockudo {
     }) as Promise<ResponseWithIdempotency>;
   }
 
+  delete(options: GetOptions): Promise<ResponseWithIdempotency> {
+    return requests.send(this.config, {
+      ...options,
+      method: "DELETE",
+    }) as Promise<ResponseWithIdempotency>;
+  }
+
   channelHistory(
     channel: string,
     params: GetOptions["params"] = {},
@@ -394,6 +406,49 @@ class Sockudo {
       path: `/channels/${channel}/messages/${messageSerial}/append`,
       body,
     }).then((response) => response.json() as Promise<MutationResponse>);
+  }
+
+  publishAnnotation(
+    channel: string,
+    messageSerial: string,
+    body: PublishAnnotationBody,
+  ): Promise<PublishAnnotationResponse> {
+    validateChannel(channel);
+    return this.post({
+      path: `/channels/${channel}/messages/${messageSerial}/annotations`,
+      body,
+    }).then(
+      (response) => response.json() as Promise<PublishAnnotationResponse>,
+    );
+  }
+
+  deleteAnnotation(
+    channel: string,
+    messageSerial: string,
+    annotationSerial: string,
+    params: { socket_id?: string } = {},
+  ): Promise<DeleteAnnotationResponse> {
+    validateChannel(channel);
+    return this.delete({
+      path: `/channels/${channel}/messages/${messageSerial}/annotations/${annotationSerial}`,
+      params,
+    }).then(
+      (response) => response.json() as Promise<DeleteAnnotationResponse>,
+    );
+  }
+
+  listAnnotations(
+    channel: string,
+    messageSerial: string,
+    params: AnnotationEventsParams = {},
+  ): Promise<AnnotationEventsResponse> {
+    validateChannel(channel);
+    return this.get({
+      path: `/channels/${channel}/messages/${messageSerial}/annotations`,
+      params,
+    }).then(
+      (response) => response.json() as Promise<AnnotationEventsResponse>,
+    );
   }
 
   channelPresenceHistory(
